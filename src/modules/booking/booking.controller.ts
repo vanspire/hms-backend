@@ -84,7 +84,8 @@ export class BookingController {
           },
           include: { 
             patient: { select: { name: true, uhid: true } },
-            doctor: { select: { name: true, department: true } }
+            doctor: { select: { name: true, department: true } },
+            visit: { select: { id: true, chiefComplaint: true, diagnosis: true, medications: true, notes: true, status: true } }
           },
           orderBy: { startTime: 'asc' }
         });
@@ -94,7 +95,8 @@ export class BookingController {
           where: patientId ? { patientId } : {},
           include: { 
             patient: { select: { name: true, uhid: true } },
-            doctor: { select: { name: true, department: true } }
+            doctor: { select: { name: true, department: true } },
+            visit: { select: { id: true, chiefComplaint: true, diagnosis: true, medications: true, notes: true, status: true } }
           },
           orderBy: { startTime: 'desc' }
         });
@@ -230,7 +232,6 @@ export class BookingController {
     }
   };
 
-  // PATCH /appointments/:id/complete
   completeAppointment = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params.id);
@@ -248,6 +249,21 @@ export class BookingController {
           where: { appointmentId: id },
           data: { status: 'completed' }
         });
+      }
+
+      // 3. Free up the slot — decrement bookedCount and re-open if below capacity
+      if (appointment.slotId) {
+        const slot = await prisma.slot.findUnique({ where: { id: appointment.slotId } });
+        if (slot) {
+          const newCount = Math.max(0, slot.bookedCount - 1);
+          await prisma.slot.update({
+            where: { id: slot.id },
+            data: {
+              bookedCount: newCount,
+              isAvailable: newCount < slot.maxCapacity
+            }
+          });
+        }
       }
 
       res.status(200).json({ message: 'Consultation completed', data: appointment });
