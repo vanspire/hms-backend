@@ -24,11 +24,22 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
+CREATE TABLE "AdminProfile" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "phone" VARCHAR(15),
+    "permissions" JSONB NOT NULL DEFAULT '[]',
+
+    CONSTRAINT "AdminProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "DoctorProfile" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "department" TEXT NOT NULL,
+    "departmentId" TEXT NOT NULL,
     "phone" VARCHAR(15) NOT NULL,
     "consultationFee" DOUBLE PRECISION NOT NULL,
     "incrementIntervalDays" INTEGER NOT NULL,
@@ -55,10 +66,20 @@ CREATE TABLE "Patient" (
     "userId" TEXT,
     "uhid" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "firstName" TEXT,
+    "lastName" TEXT,
     "age" INTEGER NOT NULL,
     "dob" TIMESTAMP(3),
     "gender" TEXT,
     "registrationDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "houseNumber" TEXT,
+    "houseName" TEXT,
+    "houseAddress" TEXT,
+    "localArea" TEXT,
+    "street" TEXT,
+    "city" TEXT,
+    "state" TEXT,
+    "pincode" TEXT,
     "address" TEXT,
     "contactNo" VARCHAR(15),
     "alternateContact" VARCHAR(15),
@@ -79,6 +100,62 @@ CREATE TABLE "Patient" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Patient_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Visit" (
+    "id" TEXT NOT NULL,
+    "appointmentId" TEXT NOT NULL,
+    "patientId" TEXT NOT NULL,
+    "doctorId" TEXT NOT NULL,
+    "chiefComplaint" TEXT,
+    "examination" TEXT,
+    "diagnosis" TEXT,
+    "diagnosisIcd10" TEXT,
+    "treatmentPlan" TEXT,
+    "medications" JSONB,
+    "labRequests" JSONB,
+    "radiologyRequests" JSONB,
+    "vitals" JSONB,
+    "consultationNotes" TEXT,
+    "notes" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'in_progress',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Visit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PatientMedicalHistory" (
+    "id" TEXT NOT NULL,
+    "patientId" TEXT NOT NULL,
+    "pastMedicalHistory" TEXT,
+    "pastSurgicalHistory" TEXT,
+    "allergies" TEXT,
+    "familyHistory" TEXT,
+    "socialHistory" TEXT,
+    "medications" TEXT,
+    "vaccinationHistory" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PatientMedicalHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Medicine" (
+    "id" TEXT NOT NULL,
+    "medicineName" TEXT NOT NULL,
+    "brand" TEXT NOT NULL,
+    "strength" TEXT NOT NULL,
+    "dosageForm" TEXT NOT NULL,
+    "unit" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Medicine_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -174,8 +251,26 @@ CREATE TABLE "Department" (
     CONSTRAINT "Department_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Organization" (
+    "id" TEXT NOT NULL,
+    "organizationName" TEXT NOT NULL,
+    "timezone" TEXT NOT NULL DEFAULT 'UTC',
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "logoUrl" TEXT,
+    "address" TEXT,
+    "contactEmail" TEXT,
+    "contactPhone" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminProfile_userId_key" ON "AdminProfile"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DoctorProfile_userId_key" ON "DoctorProfile"("userId");
@@ -190,6 +285,12 @@ CREATE UNIQUE INDEX "Patient_userId_key" ON "Patient"("userId");
 CREATE UNIQUE INDEX "Patient_uhid_key" ON "Patient"("uhid");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Visit_appointmentId_key" ON "Visit"("appointmentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PatientMedicalHistory_patientId_key" ON "PatientMedicalHistory"("patientId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Appointment_token_key" ON "Appointment"("token");
 
 -- CreateIndex
@@ -202,10 +303,28 @@ CREATE UNIQUE INDEX "Prescription_appointmentId_key" ON "Prescription"("appointm
 CREATE UNIQUE INDEX "Department_name_key" ON "Department"("name");
 
 -- AddForeignKey
+ALTER TABLE "AdminProfile" ADD CONSTRAINT "AdminProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "DoctorProfile" ADD CONSTRAINT "DoctorProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "DoctorProfile" ADD CONSTRAINT "DoctorProfile_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ReceptionistProfile" ADD CONSTRAINT "ReceptionistProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Visit" ADD CONSTRAINT "Visit_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Visit" ADD CONSTRAINT "Visit_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Visit" ADD CONSTRAINT "Visit_doctorId_fkey" FOREIGN KEY ("doctorId") REFERENCES "DoctorProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PatientMedicalHistory" ADD CONSTRAINT "PatientMedicalHistory_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Slot" ADD CONSTRAINT "Slot_doctorId_fkey" FOREIGN KEY ("doctorId") REFERENCES "DoctorProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
