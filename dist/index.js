@@ -164,7 +164,8 @@ var verifyToken = (token) => {
 
 // src/middlewares/auth.middleware.ts
 var authenticate = (req, res, next) => {
-  const token = req.cookies.token;
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : req.cookies?.token;
   if (!token) {
     res.status(401).json({ message: "Unauthorized: No token provided" });
     return;
@@ -331,20 +332,12 @@ var AuthController = class {
     try {
       const data = LoginDto.parse(req.body);
       const result = await this.service.login(data);
-      res.cookie("token", result.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1e3
-        // 1 day
-      });
-      res.status(200).json({ message: "Login successful", user: result.user });
+      res.status(200).json({ message: "Login successful", user: result.user, token: result.token });
     } catch (error) {
       res.status(400).json({ message: error.message || "Login failed" });
     }
   };
-  logout = (req, res) => {
-    res.clearCookie("token");
+  logout = (_req, res) => {
     res.status(200).json({ message: "Logged out successfully" });
   };
   checkSetup = async (req, res) => {
@@ -3406,6 +3399,7 @@ var analytics_routes_default = router14;
 import_dotenv.default.config();
 var app = (0, import_express15.default)();
 var port = process.env.PORT || 5e3;
+var allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000").split(",").map((origin) => origin.trim()).filter(Boolean);
 app.use((0, import_helmet.default)());
 app.use(import_helmet.default.crossOriginResourcePolicy({ policy: "cross-origin" }));
 var authLimiter = (0, import_express_rate_limit.default)({
@@ -3417,7 +3411,13 @@ var authLimiter = (0, import_express_rate_limit.default)({
   message: { message: "Too many requests, please try again later." }
 });
 app.use((0, import_cors.default)({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true
 }));
 app.use(import_express15.default.json());
